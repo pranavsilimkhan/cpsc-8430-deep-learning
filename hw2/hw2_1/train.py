@@ -382,7 +382,7 @@ def test(test_loader, model, i2w):
     for batch_idx, batch in enumerate(test_loader):
      
         id, avi_feats = batch
-        avi_feats = avi_feats.to(device)
+        # avi_feats = avi_feats.to(device)
         id, avi_feats = id, Variable(avi_feats).float()
         
         seq_logProb, seq_predictions = model(avi_feats, mode='inference')
