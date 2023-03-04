@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
 
 import torch.optim as optim
 import time
@@ -20,8 +15,6 @@ import re
 import pickle
 from torch.utils.data import DataLoader, Dataset
 
-# ## Data Preprocessing
-# In[2]:
 
 device = 0
 
@@ -66,9 +59,6 @@ def s_split(sentence, word_dict, w2i):
     return sentence
 
 
-# In[5]:
-
-
 def annotate(label_file, word_dict, w2i):
     label_json = './data/' + label_file
     annotated_caption = []
@@ -79,9 +69,6 @@ def annotate(label_file, word_dict, w2i):
             s = s_split(s, word_dict, w2i)
             annotated_caption.append((d['id'], s))
     return annotated_caption
-
-
-# In[6]:
 
 
 def avi(files_dir):
@@ -97,9 +84,6 @@ def avi(files_dir):
     return avi_data
 
 
-# In[7]:
-
-
 def minibatch(data):
     data.sort(key=lambda x: len(x[1]), reverse=True)
     avi_data, captions = zip(*data) 
@@ -111,9 +95,6 @@ def minibatch(data):
         end = lengths[i]
         targets[i, :end] = cap[:end]
     return avi_data, targets, lengths
-
-
-# In[8]:
 
 
 class training_data(Dataset):
@@ -136,9 +117,6 @@ class training_data(Dataset):
         return torch.Tensor(data), torch.Tensor(sentence)
 
 
-# In[9]:
-
-
 class test_data(Dataset):
     def __init__(self, test_data_path):
         self.avi = []
@@ -153,9 +131,6 @@ class test_data(Dataset):
     def __getitem__(self, idx):
         return self.avi[idx]
 
-# ## Models
-
-# In[11]:
 
 
 class attention(nn.Module):
@@ -186,8 +161,6 @@ class attention(nn.Module):
         return context
 
 
-# In[12]:
-
 
 class encoderRNN(nn.Module):
     def __init__(self):
@@ -208,8 +181,6 @@ class encoderRNN(nn.Module):
         hidden_state, context = t[0], t[1]
         return output, hidden_state
 
-
-# In[13]:
 
 
 class decoderRNN(nn.Module):
@@ -286,8 +257,6 @@ class decoderRNN(nn.Module):
         return (expit(training_steps/20 +0.85)) # inverse of the logit function
 
 
-# In[14]:
-
 
 class MODELS(nn.Module):
     def __init__(self, encoder, decoder):
@@ -303,10 +272,6 @@ class MODELS(nn.Module):
             seq_logProb, seq_predictions = self.decoder.infer(encoder_last_hidden_state=encoder_last_hidden_state, encoder_output=encoder_outputs)
         return seq_logProb, seq_predictions
 
-
-# ## Training
-
-# In[2]:
 
 def calculate_loss(loss_fn, x, y, lengths):
     batch_size = len(x)
@@ -335,8 +300,6 @@ def calculate_loss(loss_fn, x, y, lengths):
     return loss
 
 
-# In[3]:
-
 
 def minibatch(data):
     data.sort(key=lambda x: len(x[1]), reverse=True)
@@ -349,8 +312,6 @@ def minibatch(data):
         targets[i, :end] = cap[:end]
     return avi_data, targets, lengths
 
-
-# In[5]:
 
 
 def train(model, epoch, loss_fn, parameters, optimizer, train_loader):
@@ -372,7 +333,7 @@ def train(model, epoch, loss_fn, parameters, optimizer, train_loader):
     loss = loss.item()
     return loss
     print(loss)
-# In[ ]:
+
 
 
 def test(test_loader, model, i2w):
@@ -395,8 +356,6 @@ def test(test_loader, model, i2w):
             ss.append(r)
     return ss
 
-
-# In[7]:
 
 def main():
     i2w, w2i, word_dict = data_preprocess()
@@ -422,11 +381,11 @@ def main():
         loss = train(model, epoch+1, loss_fn, parameters, optimizer, train_dataloader) 
         loss_arr.append(loss)
     
-    with open('SavedModel/loss_values.txt', 'w') as f:
+    with open('model/loss_values.txt', 'w') as f:
         for item in loss_arr:
             f.write("%s\n" % item)
-    torch.save(model, "{}/{}.h5".format('SavedModel3', 'model0'))
-    print("Training finished")
+    torch.save(model, "{}/{}.h5".format('model', 'model'))
+    print("Training Completed")
     
 if __name__ == "__main__":
     main()
