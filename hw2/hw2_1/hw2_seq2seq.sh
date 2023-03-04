@@ -1,1 +1,1 @@
-python test.py $'./data/testing_data/feat' $'testing_data.txt'
+python test.py $1 $2

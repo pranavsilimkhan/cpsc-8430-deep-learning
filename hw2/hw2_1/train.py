@@ -26,7 +26,7 @@ from torch.utils.data import DataLoader, Dataset
 device = 0
 
 def data_preprocess():
-    filepath = '../../umeleti/data/'
+    filepath = './data/'
     with open(filepath + 'training_label.json', 'r') as f:
         file = json.load(f)
 
@@ -70,7 +70,7 @@ def s_split(sentence, word_dict, w2i):
 
 
 def annotate(label_file, word_dict, w2i):
-    label_json = '../../umeleti/data/' + label_file
+    label_json = './data/' + label_file
     annotated_caption = []
     with open(label_json, 'r') as f:
         label = json.load(f)
@@ -86,7 +86,7 @@ def annotate(label_file, word_dict, w2i):
 
 def avi(files_dir):
     avi_data = {}
-    training_feats = '../../umeleti/data/' + files_dir
+    training_feats = './data/' + files_dir
     files = os.listdir(training_feats)
     i = 0
     for file in files:
