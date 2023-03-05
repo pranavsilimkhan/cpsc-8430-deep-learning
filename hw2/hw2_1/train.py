@@ -18,26 +18,26 @@ from torch.utils.data import DataLoader, Dataset
 
 device = 0
 
-def data_preprocess():
-    filepath = './data/'
-    with open(filepath + 'training_label.json', 'r') as f:
+def transform_data():
+    path = './data/'
+    with open(path + 'training_label.json', 'r') as f:
         file = json.load(f)
 
-    word_count = {}
+    wc = {}
     for d in file:
         for s in d['caption']:
-            word_sentence = re.sub('[.!,;?]', ' ', s).split()
-            for word in word_sentence:
+            ws = re.sub('[.!,;?]', ' ', s).split()
+            for word in ws:
                 word = word.replace('.', '') if '.' in word else word
-                if word in word_count:
-                    word_count[word] += 1
+                if word in wc:
+                    wc[word] += 1
                 else:
-                    word_count[word] = 1
+                    wc[word] = 1
 
     word_dict = {}
-    for word in word_count:
-        if word_count[word] > 4:
-            word_dict[word] = word_count[word]
+    for word in wc:
+        if wc[word] > 4:
+            word_dict[word] = wc[word]
     useful_tokens = [('<PAD>', 0), ('<SOS>', 1), ('<EOS>', 2), ('<UNK>', 3)]
     i2w = {i + len(useful_tokens): w for i, w in enumerate(word_dict)}
     w2i = {w: i + len(useful_tokens) for i, w in enumerate(word_dict)}
@@ -203,8 +203,8 @@ class decoderRNN(nn.Module):
         _, batch_size, _ = encoder_last_hidden_state.size()
         
         decoder_current_hidden_state = None if encoder_last_hidden_state is None else encoder_last_hidden_state
-        decoder_cxt = torch.zeros(decoder_current_hidden_state.size()).to(device)
-        decoder_current_input_word = Variable(torch.ones(batch_size, 1)).long().to(device)
+        decoder_cxt = torch.zeros(decoder_current_hidden_state.size())
+        decoder_current_input_word = Variable(torch.ones(batch_size, 1)).long()
         seq_logProb = []
         seq_predictions = []
 
@@ -320,7 +320,7 @@ def train(model, epoch, loss_fn, parameters, optimizer, train_loader):
     
     for batch_idx, batch in enumerate(train_loader):
         avi_feats, ground_truths, lengths = batch
-        avi_feats, ground_truths = Variable(avi_feats).to(device), Variable(ground_truths).to(device)
+        avi_feats, ground_truths = Variable(avi_feats), Variable(ground_truths)
         
         optimizer.zero_grad()
         seq_logProb, seq_predictions = model(avi_feats, target_sentences = ground_truths, mode = 'train', tr_steps = epoch)
@@ -358,7 +358,7 @@ def test(test_loader, model, i2w):
 
 
 def main():
-    i2w, w2i, word_dict = data_preprocess()
+    i2w, w2i, word_dict = transform_data()
     with open('i2w.pickle', 'wb') as handle:
         pickle.dump(i2w, handle, protocol = pickle.HIGHEST_PROTOCOL)
     label_file = '/training_data/feat'
@@ -372,7 +372,7 @@ def main():
     decoder = decoderRNN(512, len(i2w) +4, len(i2w) +4, 1024, 0.35)
     model = MODELS(encoder=encoder, decoder=decoder)
     
-    model = model.to(device)
+    # model = model.to(device)
     loss_fn = nn.CrossEntropyLoss()
     parameters = model.parameters()
     optimizer = optim.Adam(parameters, lr=0.0001)
