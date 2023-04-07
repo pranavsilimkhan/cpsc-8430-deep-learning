@@ -12,11 +12,8 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-train_data_path = 'Spoken-SQuAD-master/spoken_train-v1.1.json'
-test_data_path = 'Spoken-SQuAD-master/spoken_test-v1.1.json'
-fig_save_path = 'figs'
 
-def get_data(path): 
+def loadData(path): 
     with open(path, 'rb') as f:
         raw_data = json.load(f)
     contexts = []
@@ -39,12 +36,12 @@ def get_data(path):
     return num_q, num_pos, num_imp, contexts, questions, answers
 
 
-num_q, num_pos, num_imp, train_contexts, train_questions, train_answers = get_data(train_data_path)
+num_q, num_pos, num_imp, train_contexts, train_questions, train_answers = loadData('Spoken-SQuAD-master/spoken_train-v1.1.json')
 num_questions  = num_q
 num_posible = num_pos
 num_imposible  = num_imp
 
-num_q, num_pos, num_imp, valid_contexts, valid_questions, valid_answers = get_data(test_data_path)
+num_q, num_pos, num_imp, valid_contexts, valid_questions, valid_answers = loadData('Spoken-SQuAD-master/spoken_test-v1.1.json')
 
 def add_answer_end(answers, contexts):
     for answer, context in zip(answers, contexts):
@@ -197,7 +194,7 @@ scheduler = ExponentialLR(optim, gamma=0.9)
 total_acc = []
 total_loss = []
 
-def train_epoch(model, dataloader, epoch):
+def train(model, dataloader, epoch):
     model = model.train()
     losses = []
     acc = []
@@ -267,8 +264,8 @@ EPOCHS = 4
 model.to(device)
 wer_list=[]
 for epoch in range(EPOCHS):
-    print('Epoch Number - {}'.format(epoch))
-    train_acc, train_loss = train_epoch(model, train_data_loader, epoch+1)
+    train_acc, train_loss = train(model, train_data_loader, epoch+1)
+    print('Epoch - {}'.format(epoch))
     print(f"Accuracy: {train_acc}")
     print(f"Loss: {train_loss}")
     answer_list = eval_model(model, valid_data_loader)
