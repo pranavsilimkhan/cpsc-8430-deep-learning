@@ -5,3 +5,6 @@
 5. Install dependencies in palmetto - https://github.com/clemsonciti/palmetto-examples/tree/master/PyTorch#pytorch-installation-for-p100v100a100
 6. Run the code (python3 <file_name>)
 7. Incase of any doubts, please contact psilimk@g.clemson.edu
+
+
+Note - output_screenshots contains screenshots of my latest run
