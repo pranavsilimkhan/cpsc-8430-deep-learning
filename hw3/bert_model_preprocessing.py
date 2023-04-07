@@ -6,7 +6,7 @@ import os
 from tqdm import tqdm
 import transformers
 from transformers import BertModel, BertTokenizerFast, AdamW
-# AutoTokenizer, AutoModelForQuestionAnswering, BertTokenizer, BertForQuestionAnswering
+
 from torch.utils.data import Dataset, DataLoader
 from torch.optim.lr_scheduler import ExponentialLR
 import matplotlib.pyplot as plt
@@ -18,7 +18,6 @@ test_data_path = 'Spoken-SQuAD-master/spoken_test-v1.1.json'
 fig_save_path = 'figs'
 
 def get_data(path): 
-    #read each file and retrieve the contexts, qustions and answers
     with open(path, 'rb') as f:
         raw_data = json.load(f)
     contexts = []
@@ -46,17 +45,8 @@ num_questions  = num_q
 num_posible = num_pos
 num_imposible  = num_imp
 
-print('Length of train contexts - {}'.format(len(train_contexts)))
-print('Length of train questions - {}'.format(len(train_questions)))
-print('Length of train answers - {}'.format(len(train_answers)))
-
-
 num_q, num_pos, num_imp, valid_contexts, valid_questions, valid_answers = get_data(test_data_path)
 
-
-print('Length of val contexts - {}'.format(len(valid_contexts)))
-print('Length of val questions - {}'.format(len(valid_questions)))
-print('Length of val answers - {}'.format(len(valid_answers)))
 
 def add_answer_end(answers, contexts):
     for answer, context in zip(answers, contexts):
@@ -65,33 +55,6 @@ def add_answer_end(answers, contexts):
 
 add_answer_end(train_answers, train_contexts)
 add_answer_end(valid_answers, valid_contexts)
-
-# for visulization
-# token_lens = []
-
-# for txt in train_contexts:
-#     txt = txt.strip()  # remove leading and trailing whitespaces
-#     token_lens.append(len(txt.split(' ')))
-
-# plt.hist(token_lens,  bins=20)  # density=False would make counts
-# plt.ylabel('Count')
-# plt.xlabel('Length')
-# plt.title('Distribution of Train Context Lengths')
-# plt.savefig(os.path.join(fig_save_path, 'Distribution_train.png'))
-
-
-# ans_lens = []
-# for txt in train_questions:
-#     txt = txt.strip()  # remove leading and trailing whitespaces
-#     ans_lens.append(len(txt.split(' ')))
-
-
-# plt.hist(ans_lens,  bins=20)  # density=False would make counts
-# plt.ylabel('Count')
-# plt.xlabel('Length')
-# plt.title('Distribution of Train Question Lengths')
-# plt.savefig(os.path.join(fig_save_path, 'Distribution_train_question.png'))
-
 
 MAX_LENGTH = 512
 MODEL_PATH = "bert-base-uncased"
@@ -110,9 +73,6 @@ for i in range(len(train_contexts)):
         para_start=max(0,min(mid - MAX_LENGTH//2,len(train_contexts[i])-MAX_LENGTH))
         para_end = para_start + MAX_LENGTH 
         train_contexts_trunc.append(train_contexts[i][para_start:para_end])
-        # print(train_contexts)
-        # print(train_contexts_trunc)
-        # print(len(train_contexts[i]),len(train_contexts_trunc[i]))
         train_answers[i]['answer_start']=((512/2)-len(train_answers[i])//2)
     else:
         train_contexts_trunc.append(train_contexts[i])
@@ -127,7 +87,7 @@ def ret_Answer_start_and_end_train(idx):
     ret_start = 0
     ret_end = 0
     answer_encoding_fast = tokenizerFast(train_answers[idx]['text'],  max_length = MAX_LENGTH, truncation=True, padding=True)
-    for a in range( len(train_encodings_fast['input_ids'][idx]) -  len(answer_encoding_fast['input_ids']) ): #len(train_encodings_fast['input_ids'][0])):
+    for a in range( len(train_encodings_fast['input_ids'][idx]) -  len(answer_encoding_fast['input_ids']) ):
         match = True
         for i in range(1,len(answer_encoding_fast['input_ids']) - 1):
             if (answer_encoding_fast['input_ids'][i] != train_encodings_fast['input_ids'][idx][a + i]):
@@ -156,7 +116,7 @@ def ret_Answer_start_and_end_valid(idx):
     ret_start = 0
     ret_end = 0
     answer_encoding_fast = tokenizerFast(valid_answers[idx]['text'],  max_length = MAX_LENGTH, truncation=True, padding=True)
-    for a in range( len(valid_encodings_fast['input_ids'][idx])  -  len(answer_encoding_fast['input_ids'])   ): #len(train_encodings_fast['input_ids'][0])):
+    for a in range( len(valid_encodings_fast['input_ids'][idx])  -  len(answer_encoding_fast['input_ids'])   ):
         match = True
         for i in range(1,len(answer_encoding_fast['input_ids']) - 1):
             if (answer_encoding_fast['input_ids'][i] != valid_encodings_fast['input_ids'][idx][a + i]):
@@ -172,7 +132,6 @@ start_positions = []
 end_positions = []
 ctr = 0
 for h in range(len(valid_encodings_fast['input_ids']) ):
-    #print(h)
     s, e = ret_Answer_start_and_end_valid(h)
     start_positions.append(s)
     end_positions.append(e)
@@ -221,7 +180,7 @@ class QAModel(nn.Module):
     def forward(self, input_ids, attention_mask, token_type_ids):
         model_output = self.bert(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids, output_hidden_states=True)
         hidden_states = model_output[2]
-        out = torch.cat((hidden_states[-1], hidden_states[-3]), dim=-1)  # taking Start logits from last BERT layer, End Logits from third to last layer
+        out = torch.cat((hidden_states[-1], hidden_states[-3]), dim=-1)
         logits = self.linear_relu_stack(out)
         
         start_logits, end_logits = logits.split(1, dim=-1)
@@ -234,15 +193,12 @@ class QAModel(nn.Module):
 model = QAModel()
 
 def focal_loss_fn(start_logits, end_logits, start_positions, end_positions, gamma):
-    
-    #calculate Probabilities by applying Softmax to the Start and End Logits. Then get 1 - probabilities
     smax = nn.Softmax(dim=1)
     probs_start = smax(start_logits)
     inv_probs_start = 1 - probs_start
     probs_end = smax(end_logits)
     inv_probs_end = 1 - probs_end
     
-    #get log of probabilities. Note: NLLLoss required log probabilities. This is the Natural Log (Log base e)
     lsmax = nn.LogSoftmax(dim=1)
     log_probs_start = lsmax(start_logits)
     log_probs_end = lsmax(end_logits)
@@ -252,7 +208,6 @@ def focal_loss_fn(start_logits, end_logits, start_positions, end_positions, gamm
     fl_start = nll(torch.pow(inv_probs_start, gamma)* log_probs_start, start_positions)
     fl_end = nll(torch.pow(inv_probs_end, gamma)*log_probs_end, end_positions)
     
-    #return mean of the Loss for the start and end logits
     return ((fl_start + fl_end)/2)
 
 optim = AdamW(model.parameters(), lr=2e-5, weight_decay=2e-2)
@@ -276,7 +231,7 @@ def train_epoch(model, dataloader, epoch):
         out_start, out_end = model(input_ids=input_ids, 
                 attention_mask=attention_mask,
                 token_type_ids=token_type_ids)
-        #loss = loss_fn(out_start, out_end, start_positions, end_positions)  # <---BASELINE.  Cross Entropy Loss is returned by Default
+
         loss = focal_loss_fn(out_start, out_end, start_positions, end_positions,1) #using gamma = 1
         losses.append(loss.item())
         loss.backward()
@@ -287,9 +242,7 @@ def train_epoch(model, dataloader, epoch):
             
         acc.append(((start_pred == start_positions).sum()/len(start_pred)).item())
         acc.append(((end_pred == end_positions).sum()/len(end_pred)).item())
-        #ctr = ctr +1
-        #if ctr==50:
-        #    break
+
         batch_tracker = batch_tracker + 1
         if batch_tracker==250 and epoch==1:
             total_acc.append(sum(acc)/len(acc))
@@ -317,13 +270,13 @@ def eval_model(model, dataloader):
             end_true = batch['end_positions'].to(device)
             
             out_start, out_end = model(input_ids=input_ids, attention_mask=attention_mask,token_type_ids=token_type_ids)
-            # print("out_start",out_start.shape)
+
             start_pred = torch.argmax(out_start)
             end_pred = torch.argmax(out_end)
             answer = tokenizerFast.convert_tokens_to_string(tokenizerFast.convert_ids_to_tokens(input_ids[0][start_pred:end_pred]))
             tanswer = tokenizerFast.convert_tokens_to_string(tokenizerFast.convert_ids_to_tokens(input_ids[0][start_true[0]:end_true[0]]))
             answer_list.append([answer,tanswer])
-        #ret_loss = sum(losses)/len(losses)
+
     return answer_list
 
 from evaluate import load
@@ -332,9 +285,12 @@ EPOCHS = 6
 model.to(device)
 wer_list=[]
 for epoch in range(EPOCHS):
-    print('Epoch - {}'.format(epoch))
     train_acc, train_loss = train_epoch(model, train_data_loader, epoch+1)
-    print(f"Train Accuracy: {train_acc}      Train Loss: {train_loss}")
+
+    print('Epoch - {}'.format(epoch))
+    print(f"Accuracy: {train_acc}")
+    print(f"Loss: {train_loss}")
+
     answer_list = eval_model(model, valid_data_loader)
     pred_answers=[]
     true_answers=[]
@@ -348,4 +304,4 @@ for epoch in range(EPOCHS):
     wer_score = wer.compute(predictions=pred_answers, references=true_answers)
     wer_list.append(wer_score)
 
-print('WER- ',wer_list)
+print('WER (after adding preprocessing) - ',wer_list)
