@@ -13,10 +13,6 @@ import matplotlib.pyplot as plt
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-train_data_path = 'Spoken-SQuAD-master/spoken_train-v1.1.json'
-test_data_path = 'Spoken-SQuAD-master/spoken_test-v1.1.json'
-fig_save_path = 'figs'
-
 def get_data(path): 
     with open(path, 'rb') as f:
         raw_data = json.load(f)
@@ -40,13 +36,13 @@ def get_data(path):
     return num_q, num_pos, num_imp, contexts, questions, answers
 
 
-num_q, num_pos, num_imp, train_contexts, train_questions, train_answers = get_data(train_data_path)
+num_q, num_pos, num_imp, train_contexts, train_questions, train_answers = get_data('Spoken-SQuAD-master/spoken_train-v1.1.json')
 num_questions  = num_q
 num_posible = num_pos
 num_imposible  = num_imp
 
 
-num_q, num_pos, num_imp, valid_contexts, valid_questions, valid_answers = get_data(test_data_path)
+num_q, num_pos, num_imp, valid_contexts, valid_questions, valid_answers = get_data('Spoken-SQuAD-master/spoken_test-v1.1.json')
 
 
 def add_answer_end(answers, contexts):
@@ -270,4 +266,4 @@ for epoch in range(EPOCHS):
     wer_score = wer.compute(predictions=pred_answers, references=true_answers)
     wer_list.append(wer_score)
 
-print('WER- ',wer_list)
+print('WER (base model) - ',wer_list)
